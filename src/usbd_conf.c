@@ -107,7 +107,7 @@ USBD_StatusTypeDef USBD_LL_Init(USBD_HandleTypeDef *pdev)
 	pdev->pData = &hpcd_USB_FS;
 
 	hpcd_USB_FS.Instance = USB;
-	hpcd_USB_FS.Init.dev_endpoints = 5;
+	hpcd_USB_FS.Init.dev_endpoints = 3;
 	hpcd_USB_FS.Init.speed = PCD_SPEED_FULL;
 	hpcd_USB_FS.Init.ep0_mps = DEP0CTL_MPS_64;
 	hpcd_USB_FS.Init.phy_itface = PCD_PHY_EMBEDDED;
@@ -116,18 +116,18 @@ USBD_StatusTypeDef USBD_LL_Init(USBD_HandleTypeDef *pdev)
 	HAL_PCD_Init(&hpcd_USB_FS);
 
 	/*
-	* PMA layout
-	*  0x00 -  0x17 (24 bytes) metadata?
-	*  0x18 -  0x57 (64 bytes) EP0 OUT
-	*  0x58 -  0x97 (64 bytes) EP0 IN
-	*  0x98 -  0xD7 (64 bytes) EP1 IN
-	*  0xD8 - 0x157 (128 bytes) EP1 OUT (buffer 1)
-	* 0x158 - 0x1D7 (128 bytes) EP1 OUT (buffer 2)
+	* PMA layout (assuming 24 half-words for BTABLE)
+	*  0x00 -  0x17 (BTABLE - 3 endpoints)
+	*  0x18 -  0x37 (EP0 OUT - 32 half-words / 64 bytes)
+	*  0x38 -  0x57 (EP0 IN  - 32 half-words / 64 bytes)
+	*  0x58 -  0x77 (EP1 IN  - 32 half-words / 64 bytes)
+	*  0x78 -  0xB7 (EP2 OUT - Buffer 1 - 64 half-words / 128 bytes)
+	*  0xB8 -  0xF7 (EP2 OUT - Buffer 2 - 64 half-words / 128 bytes)
 	*/
-	HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData , 0x00 , PCD_SNG_BUF, 24);
-	HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData , 0x80 , PCD_SNG_BUF, 0x58);
-	HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData , 0x81 , PCD_SNG_BUF, 0x98);
-	HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData , 0x02 , PCD_DBL_BUF, 0x00D80158);
+	HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData , 0x00 , PCD_SNG_BUF, 0x18U);
+	HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData , 0x80 , PCD_SNG_BUF, 0x38U);
+	HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData , 0x81 , PCD_SNG_BUF, 0x58U);
+	HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData , 0x02 , PCD_DBL_BUF, 0x00B80078U);
 
 	return USBD_OK;
 }
