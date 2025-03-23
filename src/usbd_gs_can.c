@@ -106,7 +106,7 @@ __ALIGN_BEGIN uint8_t USBD_GS_CAN_CfgDesc[USB_CAN_CONFIG_DESC_SIZ] __ALIGN_END =
 	0x00,
 	0x02,                             /* bNumInterfaces */
 	0x01,                             /* bConfigurationValue */
-	0x00,                             /* iConfiguration */
+	0x04,                             /* iConfiguration */
 	0x80,                             /* bmAttributes */
 	0x4B,                             /* MaxPower 150 mA */
 	/*---------------------------------------------------------------------------*/
