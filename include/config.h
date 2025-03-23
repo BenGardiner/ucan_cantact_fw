@@ -58,19 +58,20 @@ THE SOFTWARE.
 	#define LED2_Active_High 0
 
 #elif BOARD == BOARD_cantact
-	#define USBD_PRODUCT_STRING_FS		(uint8_t*) "cantact gs_usb"
-	#define USBD_MANUFACTURER_STRING	(uint8_t*) "cantact.io"
-	#define DFU_INTERFACE_STRING_FS		(uint8_t*) "cantact firmware upgrade interface"
+	#define USBD_PRODUCT_STRING_FS		(uint8_t*) "ucan gs_usb"
+	#define USBD_MANUFACTURER_STRING	(uint8_t*) "wiki.fysetc.com/UCAN"
+	#define DFU_INTERFACE_STRING_FS		(uint8_t*) "ucan firmware upgrade interface"
 
-	// SILENT pin not connected
+	#define CAN_S_Pin GPIO_PIN_13
+	#define CAN_S_GPIO_Port GPIOC
 
-	#define LED1_GPIO_Port GPIOB
-	#define LED1_Pin GPIO_PIN_0	/* green */
+	#define LED1_GPIO_Port GPIOA
+	#define LED1_Pin GPIO_PIN_0	/* LED1 */
 	#define LED1_Mode GPIO_MODE_OUTPUT_PP
 	#define LED1_Active_High 1
 
-	#define LED2_GPIO_Port GPIOB
-	#define LED2_Pin GPIO_PIN_1	/* red */
+	#define LED2_GPIO_Port GPIOA
+	#define LED2_Pin GPIO_PIN_1	/* LED2 */
 	#define LED2_Mode GPIO_MODE_OUTPUT_PP
 	#define LED2_Active_High 1
 
