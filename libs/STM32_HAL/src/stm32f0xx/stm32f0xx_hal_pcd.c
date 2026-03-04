@@ -844,7 +844,14 @@ HAL_StatusTypeDef HAL_PCD_EP_Receive(PCD_HandleTypeDef *hpcd, uint8_t ep_addr, u
   ep->xfer_count = 0U;
   ep->is_in = 0U;
   ep->num = ep_addr & 0x7FU;
-   
+
+  /* USER CODE BEGIN HAL_PCD_EP_Receive_Concurrency_Fix */
+  /* Disable USB IRQ around lock/xfer/unlock to prevent HAL_PCD_EP_Receive
+   * and HAL_PCD_EP_Transmit from preempting each other, avoiding USBD_BUSY
+   * deadlocks on aggressive xHCI host controllers (e.g. AMD).
+   * See: https://community.st.com/t5/stm32-mcus-embedded-software/usb-cdc-device-receive-fails-on-transmit/td-p/472929
+   * NOTE: STM32CubeMX will overwrite this file on regeneration; reapply this fix. */
+  HAL_NVIC_DisableIRQ(USB_IRQn);
   __HAL_LOCK(hpcd); 
    
   /* Multi packet transfer*/
@@ -874,6 +881,8 @@ HAL_StatusTypeDef HAL_PCD_EP_Receive(PCD_HandleTypeDef *hpcd, uint8_t ep_addr, u
   PCD_SET_EP_RX_STATUS(hpcd->Instance, ep->num, USB_EP_RX_VALID)
   
   __HAL_UNLOCK(hpcd); 
+  HAL_NVIC_EnableIRQ(USB_IRQn);
+  /* USER CODE END HAL_PCD_EP_Receive_Concurrency_Fix */
   
   return HAL_OK;
 }
@@ -909,7 +918,14 @@ HAL_StatusTypeDef HAL_PCD_EP_Transmit(PCD_HandleTypeDef *hpcd, uint8_t ep_addr, 
   ep->xfer_count = 0U;
   ep->is_in = 1U;
   ep->num = ep_addr & 0x7FU;
-  
+
+  /* USER CODE BEGIN HAL_PCD_EP_Transmit_Concurrency_Fix */
+  /* Disable USB IRQ around lock/xfer/unlock to prevent HAL_PCD_EP_Transmit
+   * and HAL_PCD_EP_Receive from preempting each other, avoiding USBD_BUSY
+   * deadlocks on aggressive xHCI host controllers (e.g. AMD).
+   * See: https://community.st.com/t5/stm32-mcus-embedded-software/usb-cdc-device-receive-fails-on-transmit/td-p/472929
+   * NOTE: STM32CubeMX will overwrite this file on regeneration; reapply this fix. */
+  HAL_NVIC_DisableIRQ(USB_IRQn);
   __HAL_LOCK(hpcd); 
   
   /*Multi packet transfer*/
@@ -953,6 +969,8 @@ HAL_StatusTypeDef HAL_PCD_EP_Transmit(PCD_HandleTypeDef *hpcd, uint8_t ep_addr, 
   PCD_SET_EP_TX_STATUS(hpcd->Instance, ep->num, USB_EP_TX_VALID)
   
   __HAL_UNLOCK(hpcd);
+  HAL_NVIC_EnableIRQ(USB_IRQn);
+  /* USER CODE END HAL_PCD_EP_Transmit_Concurrency_Fix */
      
   return HAL_OK;
 }
