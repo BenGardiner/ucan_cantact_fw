@@ -306,6 +306,7 @@ HAL_StatusTypeDef HAL_PCD_Start(PCD_HandleTypeDef *hpcd)
   */
 HAL_StatusTypeDef HAL_PCD_Stop(PCD_HandleTypeDef *hpcd)
 { 
+  HAL_NVIC_DisableIRQ(USB_IRQn);
   __HAL_LOCK(hpcd); 
   
     /* disable all interrupts and force USB reset */
@@ -318,6 +319,7 @@ HAL_StatusTypeDef HAL_PCD_Stop(PCD_HandleTypeDef *hpcd)
   hpcd->Instance->CNTR = (USB_CNTR_FRES | USB_CNTR_PDWN);
   
   __HAL_UNLOCK(hpcd); 
+  HAL_NVIC_EnableIRQ(USB_IRQn);
   return HAL_OK;
 }
 
@@ -596,12 +598,14 @@ void HAL_PCD_IRQHandler(PCD_HandleTypeDef *hpcd)
   */
 HAL_StatusTypeDef HAL_PCD_DevConnect(PCD_HandleTypeDef *hpcd)
 {
+  HAL_NVIC_DisableIRQ(USB_IRQn);
   __HAL_LOCK(hpcd); 
   
   /* Enabling DP Pull-Down bit to Connect internal pull-up on USB DP line */
   hpcd->Instance->BCDR |= USB_BCDR_DPPU;
   
   __HAL_UNLOCK(hpcd); 
+  HAL_NVIC_EnableIRQ(USB_IRQn);
   return HAL_OK;
 }
 
@@ -612,12 +616,14 @@ HAL_StatusTypeDef HAL_PCD_DevConnect(PCD_HandleTypeDef *hpcd)
   */
 HAL_StatusTypeDef HAL_PCD_DevDisconnect(PCD_HandleTypeDef *hpcd)
 {
+  HAL_NVIC_DisableIRQ(USB_IRQn);
   __HAL_LOCK(hpcd); 
   
   /* Disable DP Pull-Down bit*/
    hpcd->Instance->BCDR &= (uint16_t)(~(USB_BCDR_DPPU));
   
   __HAL_UNLOCK(hpcd); 
+  HAL_NVIC_EnableIRQ(USB_IRQn);
   return HAL_OK;
 }
 
@@ -629,6 +635,7 @@ HAL_StatusTypeDef HAL_PCD_DevDisconnect(PCD_HandleTypeDef *hpcd)
   */
 HAL_StatusTypeDef HAL_PCD_SetAddress(PCD_HandleTypeDef *hpcd, uint8_t address)
 {
+   HAL_NVIC_DisableIRQ(USB_IRQn);
    __HAL_LOCK(hpcd); 
 
    if(address == 0U) 
@@ -642,6 +649,7 @@ HAL_StatusTypeDef HAL_PCD_SetAddress(PCD_HandleTypeDef *hpcd, uint8_t address)
    }
 
   __HAL_UNLOCK(hpcd);   
+  HAL_NVIC_EnableIRQ(USB_IRQn);
   return HAL_OK;
 }
 /**
@@ -671,6 +679,7 @@ HAL_StatusTypeDef HAL_PCD_EP_Open(PCD_HandleTypeDef *hpcd, uint8_t ep_addr, uint
   ep->maxpacket = ep_mps;
   ep->type = ep_type;
   
+  HAL_NVIC_DisableIRQ(USB_IRQn);
   __HAL_LOCK(hpcd); 
 
   /* initialize Endpoint */
@@ -748,6 +757,7 @@ HAL_StatusTypeDef HAL_PCD_EP_Open(PCD_HandleTypeDef *hpcd, uint8_t ep_addr, uint
   } 
   
   __HAL_UNLOCK(hpcd);   
+  HAL_NVIC_EnableIRQ(USB_IRQn);
   return ret;
 }
 
@@ -774,6 +784,7 @@ HAL_StatusTypeDef HAL_PCD_EP_Close(PCD_HandleTypeDef *hpcd, uint8_t ep_addr)
   
   ep->is_in = (0x80U & ep_addr) != 0U;
   
+  HAL_NVIC_DisableIRQ(USB_IRQn);
   __HAL_LOCK(hpcd); 
 
   if (ep->doublebuffer == 0U) 
@@ -819,12 +830,13 @@ HAL_StatusTypeDef HAL_PCD_EP_Close(PCD_HandleTypeDef *hpcd, uint8_t ep_addr)
   } 
   
   __HAL_UNLOCK(hpcd);   
+  HAL_NVIC_EnableIRQ(USB_IRQn);
   return HAL_OK;
 }
 
 
 /**
-  * @brief  Receive an amount of data  
+  * @brief  Receive an amount of data
   * @param  hpcd: PCD handle
   * @param  ep_addr: endpoint address
   * @param  pBuf: pointer to the reception buffer   
@@ -845,6 +857,7 @@ HAL_StatusTypeDef HAL_PCD_EP_Receive(PCD_HandleTypeDef *hpcd, uint8_t ep_addr, u
   ep->is_in = 0U;
   ep->num = ep_addr & 0x7FU;
    
+  HAL_NVIC_DisableIRQ(USB_IRQn);
   __HAL_LOCK(hpcd); 
    
   /* Multi packet transfer*/
@@ -874,6 +887,7 @@ HAL_StatusTypeDef HAL_PCD_EP_Receive(PCD_HandleTypeDef *hpcd, uint8_t ep_addr, u
   PCD_SET_EP_RX_STATUS(hpcd->Instance, ep->num, USB_EP_RX_VALID)
   
   __HAL_UNLOCK(hpcd); 
+  HAL_NVIC_EnableIRQ(USB_IRQn);
   
   return HAL_OK;
 }
@@ -910,6 +924,7 @@ HAL_StatusTypeDef HAL_PCD_EP_Transmit(PCD_HandleTypeDef *hpcd, uint8_t ep_addr, 
   ep->is_in = 1U;
   ep->num = ep_addr & 0x7FU;
   
+  HAL_NVIC_DisableIRQ(USB_IRQn);
   __HAL_LOCK(hpcd); 
   
   /*Multi packet transfer*/
@@ -953,6 +968,7 @@ HAL_StatusTypeDef HAL_PCD_EP_Transmit(PCD_HandleTypeDef *hpcd, uint8_t ep_addr, 
   PCD_SET_EP_TX_STATUS(hpcd->Instance, ep->num, USB_EP_TX_VALID)
   
   __HAL_UNLOCK(hpcd);
+  HAL_NVIC_EnableIRQ(USB_IRQn);
      
   return HAL_OK;
 }
@@ -967,6 +983,7 @@ HAL_StatusTypeDef HAL_PCD_EP_SetStall(PCD_HandleTypeDef *hpcd, uint8_t ep_addr)
 {
   PCD_EPTypeDef *ep;
    
+  HAL_NVIC_DisableIRQ(USB_IRQn);
   __HAL_LOCK(hpcd); 
    
   if ((0x80U & ep_addr) == 0x80U)
@@ -999,6 +1016,7 @@ HAL_StatusTypeDef HAL_PCD_EP_SetStall(PCD_HandleTypeDef *hpcd, uint8_t ep_addr)
     }
   }
   __HAL_UNLOCK(hpcd); 
+  HAL_NVIC_EnableIRQ(USB_IRQn);
   
   return HAL_OK;
 }
@@ -1026,6 +1044,7 @@ HAL_StatusTypeDef HAL_PCD_EP_ClrStall(PCD_HandleTypeDef *hpcd, uint8_t ep_addr)
   ep->num   = ep_addr & 0x7FU;
   ep->is_in = ((ep_addr & 0x80U) == 0x80U);
   
+  HAL_NVIC_DisableIRQ(USB_IRQn);
   __HAL_LOCK(hpcd); 
   
   if (ep->is_in)
@@ -1039,6 +1058,7 @@ HAL_StatusTypeDef HAL_PCD_EP_ClrStall(PCD_HandleTypeDef *hpcd, uint8_t ep_addr)
     PCD_SET_EP_RX_STATUS(hpcd->Instance, ep->num, USB_EP_RX_VALID)
   }
   __HAL_UNLOCK(hpcd); 
+  HAL_NVIC_EnableIRQ(USB_IRQn);
     
   return HAL_OK;
 }
