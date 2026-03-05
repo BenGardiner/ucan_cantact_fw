@@ -141,8 +141,8 @@ __ALIGN_BEGIN uint8_t USBD_GS_CAN_CfgDesc[USB_CAN_CONFIG_DESC_SIZ] __ALIGN_END =
 	USB_DESC_TYPE_ENDPOINT,           /* bDescriptorType */
 	GSUSB_ENDPOINT_OUT,               /* bEndpointAddress */
 	0x02,                             /* bmAttributes: bulk */
-	LOBYTE(CAN_DATA_MAX_PACKET_SIZE*2), /* wMaxPacketSize */
-	HIBYTE(CAN_DATA_MAX_PACKET_SIZE*2),
+	LOBYTE(CAN_DATA_MAX_PACKET_SIZE),   /* wMaxPacketSize */
+	HIBYTE(CAN_DATA_MAX_PACKET_SIZE),
 	0x00,                             /* bInterval: */
 	/*---------------------------------------------------------------------------*/
 
@@ -314,8 +314,8 @@ static uint8_t USBD_GS_CAN_Start(USBD_HandleTypeDef *pdev, uint8_t cfgidx)
 	if (pdev->pClassData) {
 		USBD_GS_CAN_HandleTypeDef *hcan = (USBD_GS_CAN_HandleTypeDef*) pdev->pClassData;
 		USBD_LL_OpenEP(pdev, GSUSB_ENDPOINT_IN, USBD_EP_TYPE_BULK, CAN_DATA_MAX_PACKET_SIZE);
-		USBD_LL_OpenEP(pdev, GSUSB_ENDPOINT_OUT, USBD_EP_TYPE_BULK, CAN_DATA_MAX_PACKET_SIZE * 2); // 128 to make match the PMA buffer size
-		hcan->from_host_buf = calloc(1, CAN_DATA_MAX_PACKET_SIZE * 2);
+		USBD_LL_OpenEP(pdev, GSUSB_ENDPOINT_OUT, USBD_EP_TYPE_BULK, CAN_DATA_MAX_PACKET_SIZE);
+		hcan->from_host_buf = calloc(1, CAN_DATA_MAX_PACKET_SIZE);
 		USBD_GS_CAN_PrepareReceive(pdev);
 		ret = USBD_OK;
 	} else {
@@ -654,7 +654,7 @@ static uint8_t *USBD_GS_CAN_GetCfgDesc(uint16_t *len)
 inline uint8_t USBD_GS_CAN_PrepareReceive(USBD_HandleTypeDef *pdev)
 {
 	USBD_GS_CAN_HandleTypeDef *hcan = (USBD_GS_CAN_HandleTypeDef*)pdev->pClassData;
-	return USBD_LL_PrepareReceive(pdev, GSUSB_ENDPOINT_OUT, (uint8_t*)hcan->from_host_buf, CAN_DATA_MAX_PACKET_SIZE * 2);
+	return USBD_LL_PrepareReceive(pdev, GSUSB_ENDPOINT_OUT, (uint8_t*)hcan->from_host_buf, CAN_DATA_MAX_PACKET_SIZE);
 }
 
 bool USBD_GS_CAN_TxReady(USBD_HandleTypeDef *pdev)
