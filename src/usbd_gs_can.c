@@ -112,6 +112,18 @@ __ALIGN_BEGIN uint8_t USBD_GS_CAN_CfgDesc[USB_CAN_CONFIG_DESC_SIZ] __ALIGN_END =
 	/*---------------------------------------------------------------------------*/
 
 	/*---------------------------------------------------------------------------*/
+	/* Interface Association Descriptor */
+	0x08,                             /* bLength */
+	0x0B,                             /* bDescriptorType: IAD */
+	0x00,                             /* bFirstInterface */
+	0x02,                             /* bInterfaceCount */
+	0xFF,                             /* bFunctionClass: Vendor Specific */
+	0xFF,                             /* bFunctionSubClass: Vendor Specific */
+	0xFF,                             /* bFunctionProtocol: Vendor Specific */
+	0x00,                             /* iFunction */
+	/*---------------------------------------------------------------------------*/
+
+	/*---------------------------------------------------------------------------*/
 	/* GS_USB Interface Descriptor */
 	0x09,                             /* bLength */
 	USB_DESC_TYPE_INTERFACE,          /* bDescriptorType */
