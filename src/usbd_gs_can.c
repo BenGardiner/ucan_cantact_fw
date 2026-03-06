@@ -74,6 +74,20 @@ static uint8_t *USBD_GS_CAN_GetCfgDesc(uint16_t *len);
 static uint8_t USBD_GS_CAN_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum);
 static uint8_t *USBD_GS_CAN_GetStrDesc(USBD_HandleTypeDef *pdev, uint8_t index, uint16_t *length);
 static uint8_t USBD_GS_CAN_SOF(struct _USBD_HandleTypeDef *pdev);
+static uint8_t *USBD_GS_CAN_GetDeviceQualifierDesc(uint16_t *length);
+
+/* USB Device Qualifier Descriptor (USB 2.0 §9.6.2) */
+__ALIGN_BEGIN static uint8_t USBD_GS_CAN_DeviceQualifierDesc[USB_LEN_DEV_QUALIFIER_DESC] __ALIGN_END = {
+	USB_LEN_DEV_QUALIFIER_DESC,       /* bLength */
+	USB_DESC_TYPE_DEVICE_QUALIFIER,   /* bDescriptorType */
+	0x00, 0x02,                       /* bcdUSB: USB 2.0 */
+	0x00,                             /* bDeviceClass */
+	0x00,                             /* bDeviceSubClass */
+	0x00,                             /* bDeviceProtocol */
+	USB_MAX_EP0_SIZE,                 /* bMaxPacketSize0 */
+	0x01,                             /* bNumConfigurations */
+	0x00,                             /* bReserved */
+};
 
 /* CAN interface class callbacks structure */
 USBD_ClassTypeDef USBD_GS_CAN = {
@@ -90,7 +104,7 @@ USBD_ClassTypeDef USBD_GS_CAN = {
 	USBD_GS_CAN_GetCfgDesc,
 	USBD_GS_CAN_GetCfgDesc,
 	USBD_GS_CAN_GetCfgDesc,
-	NULL, // GetDeviceQualifierDescriptor
+	USBD_GS_CAN_GetDeviceQualifierDesc,
 	USBD_GS_CAN_GetStrDesc // GetUsrStrDescriptor
 };
 
@@ -585,6 +599,9 @@ bool USBD_GS_CAN_CustomDeviceRequest(USBD_HandleTypeDef *pdev, USBD_SetupReqType
 				break;
 
 		}
+
+		USBD_CtlError(pdev, req);
+		return true;
 	}
 
 	return false;
@@ -612,12 +629,16 @@ static uint8_t USBD_GS_CAN_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef 
 					break;
 
 				case USB_REQ_SET_INTERFACE:
+					break;
+
 				default:
+					USBD_CtlError(pdev, req);
 					break;
 			}
 			break;
 
 		default:
+			USBD_CtlError(pdev, req);
 			break;
 	}
 	return USBD_OK;
@@ -747,6 +768,12 @@ uint8_t *USBD_GS_CAN_GetStrDesc(USBD_HandleTypeDef *pdev, uint8_t index, uint16_
 			USBD_CtlError(pdev, 0);
 			return 0;
 	}
+}
+
+static uint8_t *USBD_GS_CAN_GetDeviceQualifierDesc(uint16_t *length)
+{
+	*length = sizeof(USBD_GS_CAN_DeviceQualifierDesc);
+	return USBD_GS_CAN_DeviceQualifierDesc;
 }
 
 bool USBD_GS_CAN_DfuDetachRequested(USBD_HandleTypeDef *pdev)
