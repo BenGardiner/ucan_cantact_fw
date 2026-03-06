@@ -74,6 +74,23 @@ static uint8_t *USBD_GS_CAN_GetCfgDesc(uint16_t *len);
 static uint8_t USBD_GS_CAN_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum);
 static uint8_t *USBD_GS_CAN_GetStrDesc(USBD_HandleTypeDef *pdev, uint8_t index, uint16_t *length);
 static uint8_t USBD_GS_CAN_SOF(struct _USBD_HandleTypeDef *pdev);
+static uint8_t *USBD_GS_CAN_GetDeviceQualifierDesc(uint16_t *length);
+
+/* WARNING: GetDeviceQualifierDescriptor callback MUST NOT be NULL.
+ * STM32 USB library zero-initializes dev_speed to USBD_SPEED_HIGH (0).
+ * Before HAL_PCD_ResetCallback sets speed to FULL, a Device Qualifier
+ * request will call this callback; if NULL, the device hard-faults. */
+__ALIGN_BEGIN static uint8_t USBD_GS_CAN_DeviceQualifierDesc[USB_LEN_DEV_QUALIFIER_DESC] __ALIGN_END = {
+	USB_LEN_DEV_QUALIFIER_DESC,       /* bLength */
+	USB_DESC_TYPE_DEVICE_QUALIFIER,   /* bDescriptorType */
+	0x00, 0x02,                       /* bcdUSB: USB 2.0 */
+	0x00,                             /* bDeviceClass */
+	0x00,                             /* bDeviceSubClass */
+	0x00,                             /* bDeviceProtocol */
+	USB_MAX_EP0_SIZE,                 /* bMaxPacketSize0 */
+	0x01,                             /* bNumConfigurations */
+	0x00,                             /* bReserved */
+};
 
 /* CAN interface class callbacks structure */
 USBD_ClassTypeDef USBD_GS_CAN = {
@@ -90,7 +107,7 @@ USBD_ClassTypeDef USBD_GS_CAN = {
 	USBD_GS_CAN_GetCfgDesc,
 	USBD_GS_CAN_GetCfgDesc,
 	USBD_GS_CAN_GetCfgDesc,
-	NULL, // GetDeviceQualifierDescriptor
+	USBD_GS_CAN_GetDeviceQualifierDesc,
 	USBD_GS_CAN_GetStrDesc // GetUsrStrDescriptor
 };
 
@@ -109,6 +126,21 @@ __ALIGN_BEGIN uint8_t USBD_GS_CAN_CfgDesc[USB_CAN_CONFIG_DESC_SIZ] __ALIGN_END =
 	0x04,                             /* iConfiguration */
 	0x80,                             /* bmAttributes */
 	0x4B,                             /* MaxPower 150 mA */
+	/*---------------------------------------------------------------------------*/
+
+	/*---------------------------------------------------------------------------*/
+	/* WARNING: IAD is required for composite device enumeration on AMD
+	 * xHCI controllers. bInterfaceCount MUST be 1 (gs_usb only).
+	 * If set to 2, Windows groups both interfaces into one function,
+	 * resulting in Code 28 "no driver" and no DFU device. */
+	0x08,                             /* bLength */
+	0x0B,                             /* bDescriptorType: IAD */
+	0x00,                             /* bFirstInterface */
+	0x01,                             /* bInterfaceCount */
+	0xFF,                             /* bFunctionClass: Vendor Specific */
+	0xFF,                             /* bFunctionSubClass: Vendor Specific */
+	0xFF,                             /* bFunctionProtocol: Vendor Specific */
+	0x00,                             /* iFunction */
 	/*---------------------------------------------------------------------------*/
 
 	/*---------------------------------------------------------------------------*/
@@ -136,13 +168,15 @@ __ALIGN_BEGIN uint8_t USBD_GS_CAN_CfgDesc[USB_CAN_CONFIG_DESC_SIZ] __ALIGN_END =
 	/*---------------------------------------------------------------------------*/
 
 	/*---------------------------------------------------------------------------*/
-	/* EP2 descriptor */
+	/* WARNING: wMaxPacketSize MUST be <= 64 for Full Speed bulk endpoints
+	 * per USB 2.0 §5.8.3. Larger values cause enumeration failure on
+	 * AMD xHCI controllers. */
 	0x07,                             /* bLength */
 	USB_DESC_TYPE_ENDPOINT,           /* bDescriptorType */
 	GSUSB_ENDPOINT_OUT,               /* bEndpointAddress */
 	0x02,                             /* bmAttributes: bulk */
-	LOBYTE(CAN_DATA_MAX_PACKET_SIZE*2), /* wMaxPacketSize */
-	HIBYTE(CAN_DATA_MAX_PACKET_SIZE*2),
+	LOBYTE(CAN_DATA_MAX_PACKET_SIZE), /* wMaxPacketSize */
+	HIBYTE(CAN_DATA_MAX_PACKET_SIZE),
 	0x00,                             /* bInterval: */
 	/*---------------------------------------------------------------------------*/
 
@@ -184,23 +218,17 @@ __ALIGN_BEGIN uint8_t USBD_GS_CAN_WINUSB_STR[] __ALIGN_END =
 	0x00                     /* padding */
 };
 
-/*  Microsoft Compatible ID Feature Descriptor  */
+/* WARNING: Only 1 section mapping interface 0 to WINUSB. Do NOT add a
+ * WINUSB section for interface 1 (DFU); doing so prevents Windows from
+ * assigning the DFU class driver, and the DFU device will not appear. */
 static __ALIGN_BEGIN uint8_t USBD_MS_COMP_ID_FEATURE_DESC[] __ALIGN_END = {
-	0x40, 0x00, 0x00, 0x00, /* length */
+	0x28, 0x00, 0x00, 0x00, /* length */
 	0x00, 0x01,             /* version 1.0 */
 	0x04, 0x00,             /* descr index (0x0004) */
-	0x02,                   /* number of sections */
+	0x01,                   /* number of sections */
 	0x00, 0x00, 0x00, 0x00, /* reserved */
 	0x00, 0x00, 0x00,
 	0x00,                   /* interface number */
-	0x01,                   /* reserved */
-	0x57, 0x49, 0x4E, 0x55, /* compatible ID ("WINUSB\0\0") */
-	0x53, 0x42, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, /* sub-compatible ID */
-	0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, /* reserved */
-	0x00, 0x00,
-	0x01,                   /* interface number */
 	0x01,                   /* reserved */
 	0x57, 0x49, 0x4E, 0x55, /* compatible ID ("WINUSB\0\0") */
 	0x53, 0x42, 0x00, 0x00,
@@ -314,8 +342,8 @@ static uint8_t USBD_GS_CAN_Start(USBD_HandleTypeDef *pdev, uint8_t cfgidx)
 	if (pdev->pClassData) {
 		USBD_GS_CAN_HandleTypeDef *hcan = (USBD_GS_CAN_HandleTypeDef*) pdev->pClassData;
 		USBD_LL_OpenEP(pdev, GSUSB_ENDPOINT_IN, USBD_EP_TYPE_BULK, CAN_DATA_MAX_PACKET_SIZE);
-		USBD_LL_OpenEP(pdev, GSUSB_ENDPOINT_OUT, USBD_EP_TYPE_BULK, CAN_DATA_MAX_PACKET_SIZE * 2); // 128 to make match the PMA buffer size
-		hcan->from_host_buf = calloc(1, CAN_DATA_MAX_PACKET_SIZE * 2);
+		USBD_LL_OpenEP(pdev, GSUSB_ENDPOINT_OUT, USBD_EP_TYPE_BULK, CAN_DATA_MAX_PACKET_SIZE);
+		hcan->from_host_buf = calloc(1, CAN_DATA_MAX_PACKET_SIZE);
 		USBD_GS_CAN_PrepareReceive(pdev);
 		ret = USBD_OK;
 	} else {
@@ -573,6 +601,11 @@ bool USBD_GS_CAN_CustomDeviceRequest(USBD_HandleTypeDef *pdev, USBD_SetupReqType
 				break;
 
 		}
+
+		/* WARNING: Must STALL unrecognized vendor requests.
+		 * Windows enumeration fails without this. */
+		USBD_CtlError(pdev, req);
+		return true;
 	}
 
 	return false;
@@ -600,12 +633,20 @@ static uint8_t USBD_GS_CAN_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef 
 					break;
 
 				case USB_REQ_SET_INTERFACE:
+					break;
+
 				default:
+					/* WARNING: Must STALL unknown standard requests
+					 * for Windows enumeration on AMD xHCI. */
+					USBD_CtlError(pdev, req);
 					break;
 			}
 			break;
 
 		default:
+			/* WARNING: Must STALL unhandled request types
+			 * for Windows enumeration on AMD xHCI. */
+			USBD_CtlError(pdev, req);
 			break;
 	}
 	return USBD_OK;
@@ -654,7 +695,7 @@ static uint8_t *USBD_GS_CAN_GetCfgDesc(uint16_t *len)
 inline uint8_t USBD_GS_CAN_PrepareReceive(USBD_HandleTypeDef *pdev)
 {
 	USBD_GS_CAN_HandleTypeDef *hcan = (USBD_GS_CAN_HandleTypeDef*)pdev->pClassData;
-	return USBD_LL_PrepareReceive(pdev, GSUSB_ENDPOINT_OUT, (uint8_t*)hcan->from_host_buf, CAN_DATA_MAX_PACKET_SIZE * 2);
+	return USBD_LL_PrepareReceive(pdev, GSUSB_ENDPOINT_OUT, (uint8_t*)hcan->from_host_buf, CAN_DATA_MAX_PACKET_SIZE);
 }
 
 bool USBD_GS_CAN_TxReady(USBD_HandleTypeDef *pdev)
@@ -735,6 +776,12 @@ uint8_t *USBD_GS_CAN_GetStrDesc(USBD_HandleTypeDef *pdev, uint8_t index, uint16_
 			USBD_CtlError(pdev, 0);
 			return 0;
 	}
+}
+
+static uint8_t *USBD_GS_CAN_GetDeviceQualifierDesc(uint16_t *length)
+{
+	*length = sizeof(USBD_GS_CAN_DeviceQualifierDesc);
+	return USBD_GS_CAN_DeviceQualifierDesc;
 }
 
 bool USBD_GS_CAN_DfuDetachRequested(USBD_HandleTypeDef *pdev)

@@ -6,3 +6,4 @@
 *.asmo
 *.elf
 *~
+build/

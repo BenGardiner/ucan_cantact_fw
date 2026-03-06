@@ -121,8 +121,8 @@ USBD_StatusTypeDef USBD_LL_Init(USBD_HandleTypeDef *pdev)
 	*  0x18 -  0x37 (EP0 OUT - 32 half-words / 64 bytes)
 	*  0x38 -  0x57 (EP0 IN  - 32 half-words / 64 bytes)
 	*  0x58 -  0x77 (EP1 IN  - 32 half-words / 64 bytes)
-	*  0x78 -  0xB7 (EP2 OUT - Buffer 1 - 64 half-words / 128 bytes)
-	*  0xB8 -  0xF7 (EP2 OUT - Buffer 2 - 64 half-words / 128 bytes)
+	*  0x78 -  0xB7 (EP2 OUT - Double buffer 0 - 64 bytes)
+	*  0xB8 -  0xF7 (EP2 OUT - Double buffer 1 - 64 bytes)
 	*/
 	HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData , 0x00 , PCD_SNG_BUF, 0x18U);
 	HAL_PCDEx_PMAConfig((PCD_HandleTypeDef*)pdev->pData , 0x80 , PCD_SNG_BUF, 0x38U);
