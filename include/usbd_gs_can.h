@@ -37,7 +37,7 @@ THE SOFTWARE.
 
 #define CAN_DATA_MAX_PACKET_SIZE   64  /* Endpoint IN & OUT Packet size */
 #define CAN_CMD_PACKET_SIZE        64  /* Control Endpoint Packet size */
-#define USB_CAN_CONFIG_DESC_SIZ    58
+#define USB_CAN_CONFIG_DESC_SIZ    58  /* 50 base + 8 for IAD */
 #define NUM_CAN_CHANNEL             1
 #define USBD_GS_CAN_VENDOR_CODE  0x20
 #define DFU_INTERFACE_NUM           1

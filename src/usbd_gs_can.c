@@ -76,7 +76,10 @@ static uint8_t *USBD_GS_CAN_GetStrDesc(USBD_HandleTypeDef *pdev, uint8_t index, 
 static uint8_t USBD_GS_CAN_SOF(struct _USBD_HandleTypeDef *pdev);
 static uint8_t *USBD_GS_CAN_GetDeviceQualifierDesc(uint16_t *length);
 
-/* USB Device Qualifier Descriptor (USB 2.0 §9.6.2) */
+/* WARNING: GetDeviceQualifierDescriptor callback MUST NOT be NULL.
+ * STM32 USB library zero-initializes dev_speed to USBD_SPEED_HIGH (0).
+ * Before HAL_PCD_ResetCallback sets speed to FULL, a Device Qualifier
+ * request will call this callback; if NULL, the device hard-faults. */
 __ALIGN_BEGIN static uint8_t USBD_GS_CAN_DeviceQualifierDesc[USB_LEN_DEV_QUALIFIER_DESC] __ALIGN_END = {
 	USB_LEN_DEV_QUALIFIER_DESC,       /* bLength */
 	USB_DESC_TYPE_DEVICE_QUALIFIER,   /* bDescriptorType */
@@ -126,11 +129,14 @@ __ALIGN_BEGIN uint8_t USBD_GS_CAN_CfgDesc[USB_CAN_CONFIG_DESC_SIZ] __ALIGN_END =
 	/*---------------------------------------------------------------------------*/
 
 	/*---------------------------------------------------------------------------*/
-	/* Interface Association Descriptor */
+	/* WARNING: IAD is required for composite device enumeration on AMD
+	 * xHCI controllers. bInterfaceCount MUST be 1 (gs_usb only).
+	 * If set to 2, Windows groups both interfaces into one function,
+	 * resulting in Code 28 "no driver" and no DFU device. */
 	0x08,                             /* bLength */
 	0x0B,                             /* bDescriptorType: IAD */
 	0x00,                             /* bFirstInterface */
-	0x01,                             /* bInterfaceCount: only gs_usb (interface 0) */
+	0x01,                             /* bInterfaceCount */
 	0xFF,                             /* bFunctionClass: Vendor Specific */
 	0xFF,                             /* bFunctionSubClass: Vendor Specific */
 	0xFF,                             /* bFunctionProtocol: Vendor Specific */
@@ -162,12 +168,14 @@ __ALIGN_BEGIN uint8_t USBD_GS_CAN_CfgDesc[USB_CAN_CONFIG_DESC_SIZ] __ALIGN_END =
 	/*---------------------------------------------------------------------------*/
 
 	/*---------------------------------------------------------------------------*/
-	/* EP2 descriptor */
+	/* WARNING: wMaxPacketSize MUST be <= 64 for Full Speed bulk endpoints
+	 * per USB 2.0 §5.8.3. Larger values cause enumeration failure on
+	 * AMD xHCI controllers. */
 	0x07,                             /* bLength */
 	USB_DESC_TYPE_ENDPOINT,           /* bDescriptorType */
 	GSUSB_ENDPOINT_OUT,               /* bEndpointAddress */
 	0x02,                             /* bmAttributes: bulk */
-	LOBYTE(CAN_DATA_MAX_PACKET_SIZE),   /* wMaxPacketSize */
+	LOBYTE(CAN_DATA_MAX_PACKET_SIZE), /* wMaxPacketSize */
 	HIBYTE(CAN_DATA_MAX_PACKET_SIZE),
 	0x00,                             /* bInterval: */
 	/*---------------------------------------------------------------------------*/
@@ -210,7 +218,9 @@ __ALIGN_BEGIN uint8_t USBD_GS_CAN_WINUSB_STR[] __ALIGN_END =
 	0x00                     /* padding */
 };
 
-/*  Microsoft Compatible ID Feature Descriptor  */
+/* WARNING: Only 1 section mapping interface 0 to WINUSB. Do NOT add a
+ * WINUSB section for interface 1 (DFU); doing so prevents Windows from
+ * assigning the DFU class driver, and the DFU device will not appear. */
 static __ALIGN_BEGIN uint8_t USBD_MS_COMP_ID_FEATURE_DESC[] __ALIGN_END = {
 	0x28, 0x00, 0x00, 0x00, /* length */
 	0x00, 0x01,             /* version 1.0 */
@@ -592,6 +602,8 @@ bool USBD_GS_CAN_CustomDeviceRequest(USBD_HandleTypeDef *pdev, USBD_SetupReqType
 
 		}
 
+		/* WARNING: Must STALL unrecognized vendor requests.
+		 * Windows enumeration fails without this. */
 		USBD_CtlError(pdev, req);
 		return true;
 	}
@@ -624,12 +636,16 @@ static uint8_t USBD_GS_CAN_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef 
 					break;
 
 				default:
+					/* WARNING: Must STALL unknown standard requests
+					 * for Windows enumeration on AMD xHCI. */
 					USBD_CtlError(pdev, req);
 					break;
 			}
 			break;
 
 		default:
+			/* WARNING: Must STALL unhandled request types
+			 * for Windows enumeration on AMD xHCI. */
 			USBD_CtlError(pdev, req);
 			break;
 	}
